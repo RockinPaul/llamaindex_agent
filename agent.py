@@ -1,5 +1,10 @@
 from llama_index.llms.openai import OpenAI
-from llama_index.core import SimpleDirectoryReader, Document, VectorStoreIndex
+from llama_index.core import (
+    SimpleDirectoryReader,
+    Document,
+    VectorStoreIndex,
+    PromptTemplate,
+)
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core.ingestion import IngestionPipeline
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
@@ -8,6 +13,7 @@ from llama_index.core.evaluation import FaithfulnessEvaluator
 from dotenv import load_dotenv
 import chromadb
 import os
+import multiprocessing
 
 load_dotenv()
 
@@ -42,7 +48,7 @@ async def main():
     )
 
     nodes = await pipeline.arun(documents=documents)
-    # print(nodes)
+    print(nodes)
 
     embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5")
     index = VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
@@ -50,13 +56,31 @@ async def main():
     # refine: create and refine an answer by sequentially going through each retrieved text chunk. This makes a separate LLM call per Node/retrieved chunk.
     # compact (default): similar to refining but concatenating the chunks beforehand, resulting in fewer LLM calls.
     # tree_summarize: create a detailed answer by going through each retrieved text chunk and creating a tree structure of the answer.
-    query_engine = index.as_query_engine(llm=llm, response_mode="compact")
-    response = query_engine.query("Who is Paul?")
+    query_engine = index.as_query_engine(
+        llm=llm, response_mode="compact", similarity_top_k=1
+    )
+    response = await query_engine.aquery("Who is Paul?")
 
     print(response)
 
-    evaluator = FaithfulnessEvaluator(llm=llm)
-    eval_result = evaluator.evaluate_response(response=response)
+    print("---Source Nodes for evaluation---")
+    for node in response.source_nodes:
+        print(node.text)
+    print("---------------------------------")
+
+    feedback_prompt_str = (
+        "Please evaluate if the response is faithful to the provided context. "
+        "A response is faithful if all claims made in it can be directly verified from the context.\\n\\n"
+        "First, provide a verdict: 'YES' if the response is faithful, and 'NO' if it is not. "
+        "Then, provide a concise explanation for your verdict.\\n\\n"
+        "Context:\\n{context_str}\\n\\n"
+        "Response:\\n{query_str}\\n\\n"
+        "Verdict: "
+    )
+    feedback_prompt = PromptTemplate(feedback_prompt_str)
+
+    evaluator = FaithfulnessEvaluator(llm=llm, eval_template=feedback_prompt)
+    eval_result = await evaluator.aevaluate_response(response=response)
 
     print("---Evaluation---")
     print(f"Is Faithful: {eval_result.passing}")
@@ -66,4 +90,8 @@ async def main():
 if __name__ == "__main__":
     import asyncio
 
+    # Set the start method for multiprocessing to 'spawn' to avoid issues on macOS
+    # with libraries like HuggingFace's tokenizers that use multiprocessing.
+    # The default 'fork' can lead to deadlocks or segmentation faults.
+    multiprocessing.set_start_method("spawn", force=True)
     asyncio.run(main())

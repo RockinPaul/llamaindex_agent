@@ -6,6 +6,7 @@ I have been working with Flutter since its first days. I also have a solid backg
 
 Please contact me via phone, LinkedIn, or email. Looking forward to our conversation!
 
+Paul Zarudnev
 +31 627 880 236
 https://www.linkedin.com/in/zarudnev/
 zarudnev@proton.me
