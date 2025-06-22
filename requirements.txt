@@ -2,7 +2,9 @@ llama-index
 llama-index-llms-openai
 llama-index-embeddings-huggingface
 llama-index-vector-stores-chroma
+llama-index-tools-google
 python-dotenv
 chromadb
 transformers
 torch
+llama-index-tools-mcp
