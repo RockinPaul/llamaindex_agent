@@ -1,5 +1,6 @@
 # https://huggingface.co/learn/agents-course/unit2/llama-index/workflows
-from llama_index.core.workflow import StartEvent, StopEvent, Workflow, Event, step
+from llama_index.core.workflow import StartEvent, StopEvent, Workflow, Event, step, Context
+from llama_index.utils.workflow import draw_all_possible_flows
 import random
 
 
@@ -45,14 +46,28 @@ class MultiStepWorkflow(Workflow):
         final_result = f"Finished processing: {ev.intermediate_result}"
         return StopEvent(result=final_result)
 
+    @step
+    async def query(self, ctx: Context, ev: StartEvent) -> StopEvent:
+      # store query in the context
+      await ctx.set("query", "What is the capital of France?")
+
+      # do something with context and event
+      # val = ...
+
+      # retrieve query from the context
+      query = await ctx.get("query")
+
+      return StopEvent(result=val)
+
 
 async def main():
     w = MyWorkflow(timeout=10, verbose=False)
     mw = MultiStepWorkflow(timeout=10, verbose=True)
 
-    result = await mw.run()
-    print(result)
+    # result = await mw.run()
+    # print(result)
 
+    draw_all_possible_flows(mw)
 
 if __name__ == "__main__":
     import asyncio
