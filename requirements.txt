@@ -8,3 +8,4 @@ chromadb
 transformers
 torch
 llama-index-tools-mcp
+llama-index-utils-workflow
